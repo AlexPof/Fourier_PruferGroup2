@@ -1,0 +1,196 @@
+<html>
+	<head>
+		<script src="https://d3js.org/d3.v4.min.js"></script>
+
+	</head>
+	<body>
+		<div>
+		  <label id="label_metricdepth">Metric depth:</label>
+		  <input type="range" id="metricdepth" name="metricdepth" value="1" min="1" max="8" oninput="callAlex();">
+		  <label id="metricdepth_value">1</label>
+		</div>
+
+		<svg width="100%" viewBox="0 0 800 500" preserveAspectRatio="xMinYMin meet" id="MAINSVG">
+
+		</svg>
+
+	</body>
+
+
+<script>
+
+  var SVG = d3.select("#MAINSVG");
+
+	var metric_depth = 1;
+  var ANGLE_RHYTHMS=[];
+
+	var start_xline = 100;
+	var end_xline = 700;
+	var y_line=100;
+	var height_bar = 20;
+	var length_line = end_xline-start_xline;
+
+  var start_xTree = 100;
+  var start_yTree = 300;
+  var sep_Tree = 180;
+  var length_Treebranch = 50;
+
+
+	draw_metricbar();
+
+	function callAlex() {
+		metric_depth = parseInt(d3.select('#metricdepth').property("value"));
+		d3.select('#metricdepth_value').html(metric_depth.toString());
+		draw_metricbar();
+	}
+
+	function draw_metricbar() {
+    ANGLE_RHYTHMS=[];
+
+		SVG.selectAll("line").remove();
+		SVG.selectAll("circle").remove();
+
+		SVG.append("line")
+				   .attr("x1",start_xline)
+				   .attr("x2",end_xline)
+				   .attr("y1",y_line)
+				   .attr("y2",y_line)
+				   .attr("opacity",0.5)
+				   .attr("stroke","rgb(0,0,0)")
+				   .attr("stroke-width",2);
+		SVG.append("line")
+				   .attr("x1",end_xline)
+				   .attr("x2",end_xline)
+				   .attr("y1",y_line-height_bar)
+				   .attr("y2",y_line+height_bar)
+				   .attr("opacity",1)
+				   .attr("stroke","rgb(0,0,0)")
+				   .attr("stroke-width",2);
+		SVG.append("line")
+				   .attr("x1",start_xline)
+				   .attr("x2",start_xline)
+				   .attr("y1",y_line-height_bar)
+				   .attr("y2",y_line+height_bar)
+				   .attr("opacity",1)
+				   .attr("stroke","rgb(0,0,0)")
+				   .attr("stroke-width",2);
+
+		SVG.append("circle")
+          .datum({"angle":0})
+				  .attr("cx",start_xline)
+					.attr("cy",y_line)
+					.attr("r",3)
+					.attr("fill","rgb(0,0,0)")
+				  .attr("isOn",false)
+				  .on("click", toggleTimePoint);
+
+		for (var i=0;i<metric_depth;i++) {
+			var max_step=2**i;
+			for (var j=1;j<max_step;j+=2) {
+				SVG.append("line")
+				   .attr("x1",start_xline+(j/max_step)*length_line)
+				   .attr("x2",start_xline+(j/max_step)*length_line)
+				   .attr("y1",y_line-height_bar*(1/2**i)**0.3)
+				   .attr("y2",y_line+height_bar*(1/2**i)**0.3)
+				   .attr("opacity",(1/2**i)**0.7)
+				   .attr("stroke","rgb(0,0,0)")
+				   .attr("stroke-width",2);
+				SVG.append("circle")
+            .datum({"angle":(j/max_step)*360})
+				    .attr("cx",start_xline+(j/max_step)*length_line)
+					.attr("cy",y_line)
+					.attr("r",3)
+					.attr("fill","rgb(0,0,0)")
+				   .attr("isOn",false)
+				   .on("click", toggleTimePoint);
+
+			}
+		}
+
+    // Now we draw the binary metricdepth_value
+
+    d3.selectAll(".binaryTree").remove();
+    draw_binaryTree(start_xTree,start_yTree,sep_Tree,[0],metric_depth);
+	}
+
+  function draw_binaryTree(startx,starty,sep,code,max_level) {
+    if (code.length<max_level) {
+      SVG.append("line")
+        .attr("class","binaryTree")
+        .attr("x1",startx)
+        .attr("x2",startx+length_Treebranch)
+        .attr("y1",starty)
+        .attr("y2",starty-sep/2)
+        .attr("opacity",0.5)
+        .attr("stroke","rgb(0,0,0)")
+        .attr("stroke-width",1);
+      SVG.append("line")
+          .attr("class","binaryTree")
+          .attr("x1",startx)
+          .attr("x2",startx+length_Treebranch)
+          .attr("y1",starty)
+          .attr("y2",starty+sep/2)
+          .attr("opacity",0.5)
+          .attr("stroke","rgb(0,0,0)")
+          .attr("stroke-width",1);
+          draw_binaryTree(startx+length_Treebranch,starty-sep/2,sep*0.49,code.concat([0]),max_level);
+          draw_binaryTree(startx+length_Treebranch,starty+sep/2,sep*0.49,code.concat([1]),max_level);
+    } else {
+      SVG.append("circle")
+         .attr("class","binaryTree")
+         .attr("cx",startx)
+         .attr("cy",starty)
+         .attr("r",3)
+         .attr("fill","none")
+         .attr("opacity",0.5)
+         .attr("stroke","rgb(0,0,0)");
+
+         console.log(code);
+
+        // Now calculating the Fourier Transform
+
+         var rot_times=0;
+         for (var i=1;i<code.length;i++) {
+           rot_times+=code[i]*(2**(i-1));
+         }
+
+         var real_part=0;
+         var imag_part=0;
+
+         for (var i=0;i<ANGLE_RHYTHMS.length;i++) {
+           var angle = ANGLE_RHYTHMS[i];
+           var new_angle = (angle*rot_times)%360;
+
+           real_part += Math.cos((new_angle/180)*Math.PI);
+           imag_part += Math.sin((new_angle/180)*Math.PI);
+         }
+
+
+         SVG.append("text")
+            .attr("class","binaryTree")
+            .attr("x",startx+5)
+            .attr("y",starty)
+            .style("font-size",7)
+            .html(real_part.toFixed(5)+"+<tspan style='fill:red'>i</tspan>"+imag_part.toFixed(5));
+    }
+  }
+
+  function toggleTimePoint(d,i){
+         var ison = !(this.getAttribute("isOn")=='true');
+         this.setAttribute("isOn",ison);
+         if (ison) {
+           ANGLE_RHYTHMS.push(d.angle);
+           this.setAttribute("fill","rgb(255,0,0)");
+         } else {
+           var index = ANGLE_RHYTHMS.indexOf(d.angle);
+           if (index > -1) { // only splice array when item is found
+             ANGLE_RHYTHMS.splice(index, 1); // 2nd parameter means remove one item only
+           }
+           this.setAttribute("fill","rgb(0,0,0)");
+         }
+         d3.selectAll(".binaryTree").remove();
+         draw_binaryTree(start_xTree,start_yTree,sep_Tree,[0],metric_depth);
+ }
+
+</script>
+</html>
